@@ -1,5 +1,5 @@
 -- ======================================================
--- EVENT + BUSINESS DISCOVERY DATABASE SCHEMA
+-- DISCOVERY ASSISTANT DATABASE SCHEMA
 -- ======================================================
 CREATE DATABASE IF NOT EXISTS discovery_assistant
   CHARACTER SET utf8mb4
@@ -9,8 +9,7 @@ USE discovery_assistant;
 
 -- Drop old tables for clean setup
 DROP TABLE IF EXISTS user_feedback;
-DROP TABLE IF EXISTS suggested_offer;
-DROP TABLE IF EXISTS suggested_event;
+DROP TABLE IF EXISTS suggested_item;
 DROP TABLE IF EXISTS message;
 DROP TABLE IF EXISTS conversation;
 DROP TABLE IF EXISTS business_info;
@@ -49,7 +48,6 @@ CREATE TABLE category (
 
 -- ======================================================
 -- BUSINESS TABLE
--- Stores standalone business info (can exist without events)
 -- ======================================================
 CREATE TABLE business (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -60,8 +58,8 @@ CREATE TABLE business (
     website_url VARCHAR(255),
     address VARCHAR(255),
     city VARCHAR(100),
-    latitude DECIMAL(10, 7),
-    longitude DECIMAL(10, 7),
+    latitude DECIMAL(10,7),
+    longitude DECIMAL(10,7),
     category_id INT NULL,
     image_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -71,7 +69,7 @@ CREATE TABLE business (
 
 -- ======================================================
 -- EVENT TABLE
--- Events can be hosted by businesses or exist independently
+-- Can be hosted by businesses or created by a user
 -- ======================================================
 CREATE TABLE event (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -98,7 +96,7 @@ CREATE TABLE event (
 
 -- ======================================================
 -- TAG TABLE
--- Flexible classification for both events and businesses
+-- Flexible labels for events and businesses
 -- ======================================================
 CREATE TABLE tag (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -108,6 +106,7 @@ CREATE TABLE tag (
 
 -- ======================================================
 -- EVENT_TAG TABLE
+-- Many-to-many link for events and tags
 -- ======================================================
 CREATE TABLE event_tag (
     event_id INT NOT NULL,
@@ -119,12 +118,12 @@ CREATE TABLE event_tag (
 
 -- ======================================================
 -- BUSINESS_INFO TABLE
--- Structured facts about a business (menu, hours, etc.)
+-- Structured info about a business (menu, hours, etc.)
 -- ======================================================
 CREATE TABLE business_info (
     id INT AUTO_INCREMENT PRIMARY KEY,
     business_id INT NOT NULL,
-    info_type ENUM('hours', 'menu', 'contact', 'policy', 'parking', 'other') DEFAULT 'other',
+    info_type ENUM('hours','menu','contact','policy','parking','other') DEFAULT 'other',
     question_pattern VARCHAR(255),
     answer TEXT,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -133,11 +132,12 @@ CREATE TABLE business_info (
 
 -- ======================================================
 -- OFFER TABLE
--- Promotions and deals (can exist without events)
+-- Can be tied to a business or an event
 -- ======================================================
 CREATE TABLE offer (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    business_id INT NOT NULL,
+    business_id BIGINT NULL,
+    event_id BIGINT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     discount_code VARCHAR(50),
@@ -145,12 +145,16 @@ CREATE TABLE offer (
     end_date DATE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (business_id) REFERENCES business(id)
+    FOREIGN KEY (business_id) REFERENCES business(id),
+    FOREIGN KEY (event_id) REFERENCES event(id),
+    CONSTRAINT chk_offer_parent CHECK (
+        (business_id IS NOT NULL AND event_id IS NULL) OR
+        (business_id IS NULL AND event_id IS NOT NULL)
+    )
 );
 
 -- ======================================================
 -- CONVERSATION TABLE
--- Stores user conversation context
 -- ======================================================
 CREATE TABLE conversation (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -163,54 +167,39 @@ CREATE TABLE conversation (
 
 -- ======================================================
 -- MESSAGE TABLE
--- Chat messages between user and system
 -- ======================================================
 CREATE TABLE message (
     id INT AUTO_INCREMENT PRIMARY KEY,
     conversation_id INT NOT NULL,
-    sender ENUM('user', 'system') NOT NULL,
+    sender ENUM('user','system') NOT NULL,
     content TEXT NOT NULL,
-    message_type ENUM('text', 'image', 'audio', 'video', 'interactive') DEFAULT 'text',
+    message_type ENUM('text','image','audio','video','interactive') DEFAULT 'text',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (conversation_id) REFERENCES conversation(id)
 );
 
 -- ======================================================
--- SUGGESTED_EVENT TABLE
--- Records AI event suggestions per conversation
+-- SUGGESTED_ITEM TABLE
+-- Generic table for suggestions (events, businesses, offers)
 -- ======================================================
-CREATE TABLE suggested_event (
+CREATE TABLE suggested_item (
     id INT AUTO_INCREMENT PRIMARY KEY,
     conversation_id INT NOT NULL,
-    event_id INT NOT NULL,
+    item_type ENUM('event','business','offer') NOT NULL,
+    item_id BIGINT NOT NULL,
     suggested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (conversation_id) REFERENCES conversation(id),
-    FOREIGN KEY (event_id) REFERENCES event(id)
-);
-
--- ======================================================
--- SUGGESTED_OFFER TABLE
--- Records AI offer suggestions per conversation
--- ======================================================
-CREATE TABLE suggested_offer (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    conversation_id INT NOT NULL,
-    offer_id INT NOT NULL,
-    suggested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (conversation_id) REFERENCES conversation(id),
-    FOREIGN KEY (offer_id) REFERENCES offer(id)
+    FOREIGN KEY (conversation_id) REFERENCES conversation(id)
 );
 
 -- ======================================================
 -- USER_FEEDBACK TABLE
--- Tracks user reactions to suggestions
 -- ======================================================
 CREATE TABLE user_feedback (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    suggestion_type ENUM('event', 'offer') NOT NULL,
-    suggestion_id INT NOT NULL,
+    suggestion_type ENUM('event','business','offer') NOT NULL,
+    suggestion_id BIGINT NOT NULL,
     user_id INT NOT NULL,
-    feedback_type ENUM('useful', 'not_useful', 'interested', 'attending', 'ignored') NOT NULL,
+    feedback_type ENUM('useful','not_useful','interested','attending','ignored') NOT NULL,
     feedback_text TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user(id)
@@ -218,7 +207,6 @@ CREATE TABLE user_feedback (
 
 -- ======================================================
 -- USER_INTEREST TABLE
--- Tracks user preferences by category, tag, or location
 -- ======================================================
 CREATE TABLE user_interest (
     id INT AUTO_INCREMENT PRIMARY KEY,
