@@ -1,0 +1,34 @@
+{
+  "groups": [
+    {
+      "name": "whatsapp",
+      "type": "com.whatsapp.eventservice.config.WhatsAppConfig",
+      "sourceType": "com.whatsapp.eventservice.config.WhatsAppConfig"
+    }
+  ],
+  "properties": [
+    {
+      "name": "whatsapp.access-token",
+      "type": "java.lang.String",
+      "sourceType": "com.whatsapp.eventservice.config.WhatsAppConfig"
+    },
+    {
+      "name": "whatsapp.api-url",
+      "type": "java.lang.String",
+      "sourceType": "com.whatsapp.eventservice.config.WhatsAppConfig",
+      "defaultValue": "https:\/\/graph.facebook.com\/v21.0"
+    },
+    {
+      "name": "whatsapp.phone-number-id",
+      "type": "java.lang.String",
+      "sourceType": "com.whatsapp.eventservice.config.WhatsAppConfig"
+    },
+    {
+      "name": "whatsapp.verify-token",
+      "type": "java.lang.String",
+      "sourceType": "com.whatsapp.eventservice.config.WhatsAppConfig",
+      "defaultValue": "mywhatsappverify"
+    }
+  ],
+  "hints": []
+}

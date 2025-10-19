@@ -1,0 +1,64 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '2.7.18'
+    id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+}
+
+group = 'com.whatsapp'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = '16'
+    targetCompatibility = '16'
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot Starters
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    
+    // Database
+    implementation 'mysql:mysql-connector-java:8.0.33'
+    
+    // JSON Processing
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    
+    // Logging
+    implementation 'org.springframework.boot:spring-boot-starter-logging'
+    
+    // Configuration
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    
+    // Development Tools
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    
+    // Test Dependencies
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework:spring-webflux'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+// Exclude configuration processor from the final jar
+jar {
+    enabled = false
+}
+
+bootJar {
+    archiveFileName = 'whatsapp-event-service-1.0.0.jar'
+}
