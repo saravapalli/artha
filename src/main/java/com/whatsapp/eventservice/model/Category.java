@@ -3,24 +3,24 @@ package com.whatsapp.eventservice.model;
 import java.time.LocalDateTime;
 
 /**
- * EventTag entity for storing event tags - JDBC Template version
+ * Category entity matching OpenAPI specification - JDBC Template version
  */
-public class EventTag {
+public class Category {
     
     private Long id;
-    private Event event;
-    private String tag;
+    private String name;
+    private String description;
     private LocalDateTime createdAt;
     
     // Constructors
-    public EventTag() {
+    public Category() {
         this.createdAt = LocalDateTime.now();
     }
     
-    public EventTag(Event event, String tag) {
+    public Category(String name, String description) {
         this();
-        this.event = event;
-        this.tag = tag;
+        this.name = name;
+        this.description = description;
     }
     
     // Getters and Setters
@@ -32,20 +32,20 @@ public class EventTag {
         this.id = id;
     }
     
-    public Event getEvent() {
-        return event;
+    public String getName() {
+        return name;
     }
     
-    public void setEvent(Event event) {
-        this.event = event;
+    public void setName(String name) {
+        this.name = name;
     }
     
-    public String getTag() {
-        return tag;
+    public String getDescription() {
+        return description;
     }
     
-    public void setTag(String tag) {
-        this.tag = tag;
+    public void setDescription(String description) {
+        this.description = description;
     }
     
     public LocalDateTime getCreatedAt() {
@@ -58,9 +58,10 @@ public class EventTag {
     
     @Override
     public String toString() {
-        return "EventTag{" +
+        return "Category{" +
                 "id=" + id +
-                ", tag='" + tag + '\'' +
+                ", name='" + name + '\'' +
+                ", description='" + description + '\'' +
                 '}';
     }
 }

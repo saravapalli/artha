@@ -3,39 +3,36 @@ package com.whatsapp.eventservice.model;
 import java.time.LocalDateTime;
 
 /**
- * Event entity matching OpenAPI specification - JDBC Template version
+ * Business entity matching OpenAPI specification - JDBC Template version
  */
-public class Event {
+public class Business {
     
     private Long id;
     private String name;
     private String description;
-    private Long categoryId;
-    private Long businessId;
-    private Long createdBy;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
-    private String location;
+    private String phoneNumber;
+    private String email;
+    private String websiteUrl;
+    private String address;
     private String city;
+    private Double latitude;
+    private Double longitude;
+    private Long categoryId;
     private String imageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
     // Constructors
-    public Event() {
+    public Business() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
     
-    public Event(String name, String description, String location, String city, 
-                LocalDateTime startTime, LocalDateTime endTime) {
+    public Business(String name, String description, String city) {
         this();
         this.name = name;
         this.description = description;
-        this.location = location;
         this.city = city;
-        this.startTime = startTime;
-        this.endTime = endTime;
     }
     
     // Getters and Setters
@@ -63,52 +60,36 @@ public class Event {
         this.description = description;
     }
     
-    public Long getCategoryId() {
-        return categoryId;
+    public String getPhoneNumber() {
+        return phoneNumber;
     }
     
-    public void setCategoryId(Long categoryId) {
-        this.categoryId = categoryId;
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
     }
     
-    public Long getBusinessId() {
-        return businessId;
+    public String getEmail() {
+        return email;
     }
     
-    public void setBusinessId(Long businessId) {
-        this.businessId = businessId;
+    public void setEmail(String email) {
+        this.email = email;
     }
     
-    public Long getCreatedBy() {
-        return createdBy;
+    public String getWebsiteUrl() {
+        return websiteUrl;
     }
     
-    public void setCreatedBy(Long createdBy) {
-        this.createdBy = createdBy;
+    public void setWebsiteUrl(String websiteUrl) {
+        this.websiteUrl = websiteUrl;
     }
     
-    public LocalDateTime getStartTime() {
-        return startTime;
+    public String getAddress() {
+        return address;
     }
     
-    public void setStartTime(LocalDateTime startTime) {
-        this.startTime = startTime;
-    }
-    
-    public LocalDateTime getEndTime() {
-        return endTime;
-    }
-    
-    public void setEndTime(LocalDateTime endTime) {
-        this.endTime = endTime;
-    }
-    
-    public String getLocation() {
-        return location;
-    }
-    
-    public void setLocation(String location) {
-        this.location = location;
+    public void setAddress(String address) {
+        this.address = address;
     }
     
     public String getCity() {
@@ -117,6 +98,30 @@ public class Event {
     
     public void setCity(String city) {
         this.city = city;
+    }
+    
+    public Double getLatitude() {
+        return latitude;
+    }
+    
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+    
+    public Double getLongitude() {
+        return longitude;
+    }
+    
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+    
+    public Long getCategoryId() {
+        return categoryId;
+    }
+    
+    public void setCategoryId(Long categoryId) {
+        this.categoryId = categoryId;
     }
     
     public String getImageUrl() {
@@ -152,11 +157,10 @@ public class Event {
     
     @Override
     public String toString() {
-        return "Event{" +
+        return "Business{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
                 ", city='" + city + '\'' +
-                ", startTime=" + startTime +
                 '}';
     }
 }

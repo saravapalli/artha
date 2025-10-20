@@ -44,18 +44,16 @@ public class UserService {
         if (existingUser.isPresent()) {
             User user = existingUser.get();
             
-            // Update whatsapp_id if it's missing
-            if (whatsappId != null && (user.getWhatsappId() == null || user.getWhatsappId().isEmpty())) {
-                user.setWhatsappId(whatsappId);
-                user = userRepository.save(user);
-                logger.info("✅ Updated WhatsApp ID for user: {}", user.getId());
-            }
+            // Update user if needed
+            user = userRepository.save(user);
+            logger.info("✅ Retrieved user: {}", user.getId());
             
             return user;
         }
         
         // Create new user
-        User newUser = new User(phoneNumber, whatsappId);
+        User newUser = new User();
+        newUser.setPhoneNumber(phoneNumber);
         newUser = userRepository.save(newUser);
         logger.info("✅ Created new user with ID: {}", newUser.getId());
         
@@ -99,14 +97,11 @@ public class UserService {
         if (userData.containsKey("email")) {
             user.setEmail((String) userData.get("email"));
         }
-        if (userData.containsKey("city")) {
-            user.setCity((String) userData.get("city"));
+        if (userData.containsKey("profilePicUrl")) {
+            user.setProfilePicUrl((String) userData.get("profilePicUrl"));
         }
-        if (userData.containsKey("timezone")) {
-            user.setTimezone((String) userData.get("timezone"));
-        }
-        if (userData.containsKey("language")) {
-            user.setLanguage((String) userData.get("language"));
+        if (userData.containsKey("bio")) {
+            user.setBio((String) userData.get("bio"));
         }
         
         user = userRepository.save(user);
@@ -116,27 +111,27 @@ public class UserService {
     }
     
     /**
-     * Set user opt-in status
-     * 
-     * @param id User ID
-     * @param optIn Opt-in status
-     * @return True if updated successfully
+     * Create a new user - matches OpenAPI spec
      */
-    public boolean setOptInStatus(Long id, boolean optIn) {
-        logger.info("📝 Setting opt-in status for user ID: {} to {}", id, optIn);
+    public User createUser(User user) {
+        logger.info("👤 Creating new user: {}", user.getName());
         
-        Optional<User> userOpt = userRepository.findById(id);
-        if (userOpt.isEmpty()) {
-            logger.warn("⚠️ User not found with ID: {}", id);
-            return false;
-        }
+        user = userRepository.save(user);
+        logger.info("✅ User created successfully with ID: {}", user.getId());
         
-        User user = userOpt.get();
-        user.setOptInStatus(optIn);
-        userRepository.save(user);
+        return user;
+    }
+    
+    /**
+     * Get all users - matches OpenAPI spec
+     */
+    public List<User> getAllUsers() {
+        logger.info("👥 Getting all users");
         
-        logger.info("✅ Opt-in status updated successfully");
-        return true;
+        List<User> users = userRepository.findAll();
+        logger.info("✅ Retrieved {} users", users.size());
+        
+        return users;
     }
     
     /**
@@ -230,39 +225,4 @@ public class UserService {
         logger.info("✅ Conversation history saved successfully");
     }
     
-    /**
-     * Get opted-in users
-     * 
-     * @return List of opted-in users
-     */
-    public List<User> getOptedInUsers() {
-        logger.info("📋 Getting opted-in users");
-        
-        List<User> users = userRepository.findByOptInStatusTrue();
-        
-        logger.info("✅ Found {} opted-in users", users.size());
-        return users;
-    }
-    
-    /**
-     * Get user statistics
-     * 
-     * @return User statistics
-     */
-    public Map<String, Object> getUserStats() {
-        logger.info("📊 Getting user statistics");
-        
-        Map<String, Object> stats = new HashMap<>();
-        
-        long totalUsers = userRepository.count();
-        long optedInUsers = userRepository.countByOptInStatusTrue();
-        
-        stats.put("total_users", totalUsers);
-        stats.put("opted_in_users", optedInUsers);
-        stats.put("opt_in_rate", totalUsers > 0 ? (double) optedInUsers / totalUsers : 0.0);
-        stats.put("timestamp", LocalDateTime.now());
-        
-        logger.info("✅ User statistics retrieved");
-        return stats;
-    }
 }

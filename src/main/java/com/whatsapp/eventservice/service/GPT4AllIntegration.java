@@ -25,6 +25,13 @@ public class GPT4AllIntegration {
     private AIQueryProcessor fallbackProcessor;
     
     /**
+     * Enhanced query processing using GPT4All - alias for orchestration service
+     */
+    public Map<String, Object> processQuery(String userQuery) {
+        return processQueryWithGPT4All(userQuery);
+    }
+    
+    /**
      * Enhanced query processing using GPT4All
      */
     public Map<String, Object> processQueryWithGPT4All(String userQuery) {
@@ -70,13 +77,14 @@ public class GPT4AllIntegration {
      */
     private String createPromptForEventQuery(String userQuery) {
         return String.format("""
-            You are an AI assistant that helps users find local events. Parse the following user query and extract relevant information for event search.
+            You are an AI assistant that helps users find local events, businesses, and offers. Parse the following user query and extract relevant information for search.
             
             User Query: "%s"
             
             Please extract and return ONLY a JSON object with the following structure:
             {
-                "intent": "search_events",
+                "intent": "search_events|search_businesses|search_offers|search_general",
+                "search_types": ["events", "businesses", "offers"],
                 "category": "music|sports|family|art|food|education|entertainment|outdoor|general",
                 "subcategory": "specific subcategory if mentioned",
                 "date_range": "today|tomorrow|weekend|this_week|next_week|this_month|specific_date",
@@ -88,6 +96,11 @@ public class GPT4AllIntegration {
             }
             
             Guidelines:
+            - Determine search_types based on what the user is asking for:
+              * "events" for concerts, shows, festivals, workshops, etc.
+              * "businesses" for restaurants, stores, venues, services, etc.
+              * "offers" for deals, discounts, promotions, etc.
+              * Can include multiple types if user's intent is unclear
             - If no specific category is mentioned, use "general"
             - If no date is mentioned, use "upcoming"
             - If no city is mentioned, use "near_me"
@@ -381,6 +394,81 @@ public class GPT4AllIntegration {
         }
     }
     
+    /**
+     * Generate response using GPT4All
+     */
+    public String generateResponse(String originalMessage, List<?> suggestedItems, Map<String, Object> parsedQuery) throws Exception {
+        try {
+            String prompt = createResponsePrompt(originalMessage, suggestedItems, parsedQuery);
+            
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("prompt", prompt);
+            requestBody.put("max_tokens", 300);
+            requestBody.put("temperature", 0.7);
+            requestBody.put("top_p", 0.9);
+            
+            String response = makeHttpRequest(GPT4ALL_API_URL + "/generate", requestBody);
+            
+            if (response != null && !response.isEmpty()) {
+                return parseGeneratedResponse(response);
+            }
+            
+            throw new Exception("Empty response from GPT4All");
+            
+        } catch (Exception e) {
+            System.err.println("⚠️ GPT4All response generation failed: " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    /**
+     * Create prompt for response generation
+     */
+    private String createResponsePrompt(String originalMessage, List<?> suggestedItems, Map<String, Object> parsedQuery) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("You are a helpful assistant that recommends events, businesses, and offers to users. ");
+        prompt.append("Generate a friendly, conversational response to the user's message.\n\n");
+        prompt.append("User's original message: \"").append(originalMessage).append("\"\n\n");
+        
+        if (!suggestedItems.isEmpty()) {
+            prompt.append("Here are the suggested items to recommend:\n");
+            for (int i = 0; i < suggestedItems.size(); i++) {
+                Object item = suggestedItems.get(i);
+                prompt.append(i + 1).append(". ").append(item.toString()).append("\n");
+            }
+            prompt.append("\n");
+        }
+        
+        prompt.append("Generate a helpful, engaging response that:\n");
+        prompt.append("1. Acknowledges the user's request\n");
+        prompt.append("2. Presents the suggestions in an appealing way\n");
+        prompt.append("3. Encourages further interaction\n");
+        prompt.append("4. Keeps the tone friendly and conversational\n\n");
+        prompt.append("Response: ");
+        
+        return prompt.toString();
+    }
+    
+    /**
+     * Parse generated response from GPT4All
+     */
+    private String parseGeneratedResponse(String response) {
+        try {
+            // Simple parsing - in a real implementation, you might need more sophisticated parsing
+            if (response.startsWith("{") && response.contains("response")) {
+                // Extract response from JSON if needed
+                int startIndex = response.indexOf("\"response\":\"") + 12;
+                int endIndex = response.lastIndexOf("\"");
+                if (startIndex > 11 && endIndex > startIndex) {
+                    return response.substring(startIndex, endIndex).replace("\\n", "\n").replace("\\\"", "\"");
+                }
+            }
+            return response.trim();
+        } catch (Exception e) {
+            return response.trim();
+        }
+    }
+
     /**
      * Get GPT4All service status
      */

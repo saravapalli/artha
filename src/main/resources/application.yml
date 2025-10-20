@@ -13,14 +13,10 @@ spring:
     password: ${DB_PASSWORD:whatsapp_password}
     driver-class-name: com.mysql.cj.jdbc.Driver
     
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
-        format_sql: true
+  jdbc:
+    template:
+      query-timeout: 30
+      max-rows: 1000
         
   jackson:
     property-naming-strategy: SNAKE_CASE
@@ -46,8 +42,7 @@ logging:
   level:
     com.whatsapp.eventservice: INFO
     org.springframework.web: INFO
-    org.hibernate.SQL: WARN
-    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.jdbc: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

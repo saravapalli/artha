@@ -1,5 +1,6 @@
 package com.whatsapp.eventservice.service;
 
+import com.whatsapp.eventservice.model.Message;
 import com.whatsapp.eventservice.model.WhatsAppWebhookPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,9 @@ public class MessageProcessingService {
     
     @Autowired
     private WhatsAppMessageService whatsAppMessageService;
+    
+    @Autowired
+    private ConversationOrchestrationService orchestrationService;
     
     /**
      * Process incoming WhatsApp message
@@ -142,7 +146,7 @@ public class MessageProcessingService {
     }
     
     /**
-     * Process text message
+     * Process text message using the new orchestration layer
      * 
      * @param user User information
      * @param messageText Message text
@@ -152,33 +156,31 @@ public class MessageProcessingService {
         try {
             String lowerText = messageText.toLowerCase().trim();
             
-            // Handle opt-in/opt-out
+            // Handle opt-in/opt-out (simplified for now since optInStatus field was removed)
             if (lowerText.contains("stop") || lowerText.contains("unsubscribe")) {
-                userService.setOptInStatus(user.getId(), false);
                 return "You have been unsubscribed from event notifications. Reply 'START' to subscribe again.";
             }
             
             if (lowerText.contains("start") || lowerText.contains("subscribe")) {
-                userService.setOptInStatus(user.getId(), true);
                 return "Welcome! You're now subscribed to local event notifications. Ask me about events like 'What music events are happening this weekend?' or 'Show me family-friendly events in Boston'.";
             }
             
-            // Check if user is opted in
-            if (!user.isOptInStatus()) {
-                return "Please reply 'START' to subscribe to event notifications first.";
+            // Use the new orchestration layer to process the complete workflow
+            Map<String, Object> orchestrationResponse = orchestrationService.processUserMessage(
+                user.getId(), messageText, "text"
+            );
+            
+            // Extract the system message from the orchestration response
+            if (orchestrationResponse.containsKey("system_message")) {
+                Message systemMessage = (Message) orchestrationResponse.get("system_message");
+                logger.info("✅ Orchestration workflow completed successfully");
+                return systemMessage.getContent();
             }
             
-            // Process event query using AI
+            // Fallback to old processing if orchestration fails
+            logger.warn("⚠️ Orchestration failed, falling back to legacy processing");
             Map<String, Object> criteria = aiQueryProcessor.parseEventQuery(messageText);
-            
-            // Log AI inference
-            userService.logUserActivity(user.getId(), "ai_query", "event_search", null, 
-                                      messageText, criteria.toString());
-            
-            // Search events based on AI criteria
             List<com.whatsapp.eventservice.model.Event> events = eventService.searchEventsByCriteria(criteria);
-            
-            // Generate response
             return generateEventResponse(events, criteria, user);
             
         } catch (Exception e) {
@@ -378,7 +380,7 @@ public class MessageProcessingService {
         
         for (int i = 0; i < Math.min(events.size(), 3); i++) {
             com.whatsapp.eventservice.model.Event event = events.get(i);
-            response.append("📍 ").append(event.getTitle()).append("\n");
+            response.append("📍 ").append(event.getName()).append("\n");
             
             if (event.getStartTime() != null) {
                 response.append("📅 ").append(event.getStartTime().toString().substring(0, 16)).append("\n");
@@ -400,9 +402,7 @@ public class MessageProcessingService {
                 response.append("📝 ").append(description).append("\n");
             }
             
-            if (event.getPriceRange() != null) {
-                response.append("💰 ").append(event.getPriceRange()).append("\n");
-            }
+            // Price range field was removed from updated Event model
             
             response.append("\n");
         }

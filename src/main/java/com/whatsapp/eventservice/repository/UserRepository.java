@@ -1,89 +1,249 @@
 package com.whatsapp.eventservice.repository;
 
 import com.whatsapp.eventservice.model.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Repository for User entity
+ * User repository using JDBC Template
  */
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+@Transactional
+public class UserRepository {
+    
+    private static final Logger logger = LoggerFactory.getLogger(UserRepository.class);
+    
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+    
+    private final RowMapper<User> userRowMapper = (rs, rowNum) -> {
+        User user = new User();
+        user.setId(rs.getLong("id"));
+        user.setName(rs.getString("name"));
+        user.setPhoneNumber(rs.getString("phone_number"));
+        user.setEmail(rs.getString("email"));
+        user.setProfilePicUrl(rs.getString("profile_pic_url"));
+        user.setBio(rs.getString("bio"));
+        
+        if (rs.getTimestamp("created_at") != null) {
+            user.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
+        }
+        
+        return user;
+    };
+    
+    /**
+     * Save a new user
+     */
+    public User save(User user) {
+        logger.info("💾 Saving user: {}", user.getPhoneNumber());
+        
+        String sql = """
+            INSERT INTO users (name, phone_number, email, profile_pic_url, bio, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """;
+        
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        
+        try {
+            jdbcTemplate.update(connection -> {
+                PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                ps.setString(1, user.getName());
+                ps.setString(2, user.getPhoneNumber());
+                ps.setString(3, user.getEmail());
+                ps.setString(4, user.getProfilePicUrl());
+                ps.setString(5, user.getBio());
+                ps.setObject(6, user.getCreatedAt());
+                return ps;
+            }, keyHolder);
+            
+            Long generatedId = keyHolder.getKey().longValue();
+            user.setId(generatedId);
+            
+            logger.info("✅ User saved successfully with ID: {}", generatedId);
+            return user;
+            
+        } catch (DataAccessException e) {
+            logger.error("❌ Error saving user", e);
+            throw new RuntimeException("Failed to save user", e);
+        }
+    }
+    
+    /**
+     * Find user by ID
+     */
+    public Optional<User> findById(Long id) {
+        logger.info("🔍 Finding user by ID: {}", id);
+        
+        String sql = "SELECT * FROM users WHERE id = ?";
+        
+        try {
+            List<User> users = jdbcTemplate.query(sql, userRowMapper, id);
+            return users.isEmpty() ? Optional.empty() : Optional.of(users.get(0));
+            
+        } catch (DataAccessException e) {
+            logger.error("❌ Error finding user by ID: {}", id, e);
+            return Optional.empty();
+        }
+    }
     
     /**
      * Find user by phone number
-     * 
-     * @param phoneNumber Phone number
-     * @return Optional User
      */
-    Optional<User> findByPhoneNumber(String phoneNumber);
+    public Optional<User> findByPhoneNumber(String phoneNumber) {
+        logger.info("📞 Finding user by phone number: {}", phoneNumber);
+        
+        String sql = "SELECT * FROM users WHERE phone_number = ?";
+        
+        try {
+            List<User> users = jdbcTemplate.query(sql, userRowMapper, phoneNumber);
+            return users.isEmpty() ? Optional.empty() : Optional.of(users.get(0));
+            
+        } catch (DataAccessException e) {
+            logger.error("❌ Error finding user by phone number: {}", phoneNumber, e);
+            return Optional.empty();
+        }
+    }
     
     /**
-     * Find user by WhatsApp ID
-     * 
-     * @param whatsappId WhatsApp ID
-     * @return Optional User
+     * Find all users
      */
-    Optional<User> findByWhatsappId(String whatsappId);
+    public List<User> findAll() {
+        logger.info("📋 Finding all users");
+        
+        String sql = "SELECT * FROM users ORDER BY created_at DESC";
+        
+        try {
+            return jdbcTemplate.query(sql, userRowMapper);
+        } catch (DataAccessException e) {
+            logger.error("❌ Error finding all users", e);
+            return List.of();
+        }
+    }
     
     /**
-     * Find users by opt-in status
-     * 
-     * @return List of opted-in users
+     * Update a user
      */
-    List<User> findByOptInStatusTrue();
+    public User update(User user) {
+        logger.info("✏️ Updating user ID: {}", user.getId());
+        
+        String sql = """
+            UPDATE users SET name = ?, phone_number = ?, email = ?, 
+                           profile_pic_url = ?, bio = ?
+            WHERE id = ?
+            """;
+        
+        try {
+            int rowsAffected = jdbcTemplate.update(sql,
+                user.getName(),
+                user.getPhoneNumber(),
+                user.getEmail(),
+                user.getProfilePicUrl(),
+                user.getBio(),
+                user.getId()
+            );
+            
+            if (rowsAffected > 0) {
+                logger.info("✅ User updated successfully");
+                return user;
+            } else {
+                logger.warn("⚠️ No user found with ID: {}", user.getId());
+                return null;
+            }
+            
+        } catch (DataAccessException e) {
+            logger.error("❌ Error updating user", e);
+            throw new RuntimeException("Failed to update user", e);
+        }
+    }
     
     /**
-     * Count users by opt-in status
-     * 
-     * @return Count of opted-in users
+     * Delete user by ID
      */
-    long countByOptInStatusTrue();
+    public boolean deleteById(Long id) {
+        logger.info("🗑️ Deleting user ID: {}", id);
+        
+        String sql = "DELETE FROM users WHERE id = ?";
+        
+        try {
+            int rowsAffected = jdbcTemplate.update(sql, id);
+            boolean deleted = rowsAffected > 0;
+            
+            if (deleted) {
+                logger.info("✅ User deleted successfully");
+            } else {
+                logger.warn("⚠️ No user found with ID: {}", id);
+            }
+            
+            return deleted;
+            
+        } catch (DataAccessException e) {
+            logger.error("❌ Error deleting user", e);
+            throw new RuntimeException("Failed to delete user", e);
+        }
+    }
     
     /**
-     * Find users by city
-     * 
-     * @param city City name
-     * @return List of users in the city
+     * Count total users
      */
-    List<User> findByCity(String city);
-    
-    /**
-     * Find users by language
-     * 
-     * @param language Language code
-     * @return List of users with the language
-     */
-    List<User> findByLanguage(String language);
-    
-    /**
-     * Find active users (opted-in) by city
-     * 
-     * @param city City name
-     * @return List of active users in the city
-     */
-    @Query("SELECT u FROM User u WHERE u.city = :city AND u.optInStatus = true")
-    List<User> findActiveUsersByCity(@Param("city") String city);
-    
-    /**
-     * Count users by city
-     * 
-     * @param city City name
-     * @return Count of users in the city
-     */
-    long countByCity(String city);
+    public long count() {
+        logger.info("🔢 Counting total users");
+        
+        String sql = "SELECT COUNT(*) FROM users";
+        
+        try {
+            Long count = jdbcTemplate.queryForObject(sql, Long.class);
+            return count != null ? count : 0;
+        } catch (DataAccessException e) {
+            logger.error("❌ Error counting users", e);
+            return 0;
+        }
+    }
     
     /**
      * Find users created after a specific date
-     * 
-     * @param date Date
-     * @return List of users created after the date
      */
-    @Query("SELECT u FROM User u WHERE u.createdAt > :date")
-    List<User> findUsersCreatedAfter(@Param("date") java.time.LocalDateTime date);
+    public List<User> findUsersCreatedAfter(LocalDateTime date) {
+        logger.info("📅 Finding users created after: {}", date);
+        
+        String sql = "SELECT * FROM users WHERE created_at > ? ORDER BY created_at DESC";
+        
+        try {
+            return jdbcTemplate.query(sql, userRowMapper, date);
+        } catch (DataAccessException e) {
+            logger.error("❌ Error finding users created after date", e);
+            return List.of();
+        }
+    }
+    
+    /**
+     * Check if user exists by phone number
+     */
+    public boolean existsByPhoneNumber(String phoneNumber) {
+        logger.info("🔍 Checking if user exists with phone number: {}", phoneNumber);
+        
+        String sql = "SELECT COUNT(*) FROM users WHERE phone_number = ?";
+        
+        try {
+            Long count = jdbcTemplate.queryForObject(sql, Long.class, phoneNumber);
+            return count != null && count > 0;
+        } catch (DataAccessException e) {
+            logger.error("❌ Error checking user existence", e);
+            return false;
+        }
+    }
 }
